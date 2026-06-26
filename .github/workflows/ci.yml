@@ -1,9 +1,3 @@
-# CI workflow — staged here because pushing files under .github/workflows/ requires the
-# 'workflow' OAuth scope on the gh token. To ENABLE real CI (recommended on a public repo):
-#   1) gh auth refresh -h github.com -s workflow
-#   2) mkdir -p .github/workflows && git mv docs/ci.yml.example .github/workflows/ci.yml
-#   3) git commit -m 'ci: enable secret-scan + structure guard' && git push
-# (Or just add it via the GitHub web UI 'Add file', which has workflow scope.)
 
 name: ci
 
