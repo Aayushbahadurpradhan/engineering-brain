@@ -1,4 +1,3 @@
-
 name: ci
 
 on:
@@ -26,8 +25,11 @@ jobs:
       - name: No committed env/secret files
         run: |
           set -e
-          if git ls-files | grep -E '(^|/)\.env($|\.)|(^|/)secrets/(?!README\.md$|.*\.example$)' ; then
-            echo "::error::A .env or real secrets/ file is tracked. It must be gitignored."
+          # tracked .env / .env.* or anything under secrets/, minus the allowed *.example and secrets/README.md
+          bad=$(git ls-files | grep -E '(^|/)\.env($|\.)|^secrets/' | grep -vE '\.example$|^secrets/README\.md$' || true)
+          if [ -n "$bad" ]; then
+            echo "::error::A real .env or secrets file is tracked (must be gitignored):"
+            echo "$bad"
             exit 1
           fi
           echo "No tracked env/secret files."
