@@ -1,0 +1,21 @@
+# Secrets — real keys live in secrets/ or your env and are NEVER committed; only templates/README are tracked
+.env
+.env.*
+!.env.example
+secrets/*
+!secrets/README.md
+!secrets/*.example
+
+# Local tool state
+.claude/settings.local.json
+*.local.json
+.claude/scheduled_tasks.lock
+
+# Scratch / generated
+scratch/
+graphify-out/
+*.log
+
+# OS noise
+Thumbs.db
+.DS_Store

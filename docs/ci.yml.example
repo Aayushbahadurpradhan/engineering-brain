@@ -1,0 +1,70 @@
+# CI workflow — staged here because pushing files under .github/workflows/ requires the
+# 'workflow' OAuth scope on the gh token. To ENABLE real CI (recommended on a public repo):
+#   1) gh auth refresh -h github.com -s workflow
+#   2) mkdir -p .github/workflows && git mv docs/ci.yml.example .github/workflows/ci.yml
+#   3) git commit -m 'ci: enable secret-scan + structure guard' && git push
+# (Or just add it via the GitHub web UI 'Add file', which has workflow scope.)
+
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  guard:
+    name: secrets & structure guard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: No secret-like strings in tracked files
+        run: |
+          set -e
+          # API keys, private keys, cloud creds — fail the build if any appear in tracked content.
+          if git grep -nEI 'nvapi-[A-Za-z0-9_-]{20,}|sk-[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16}|-----BEGIN [A-Z ]*PRIVATE KEY-----|ghp_[A-Za-z0-9]{30,}' -- . ':!**/*.example' ':!.github/workflows/*'; then
+            echo "::error::Secret-like content found in tracked files. Remove it and rotate the credential."
+            exit 1
+          fi
+          echo "No secret-like strings found."
+
+      - name: No committed env/secret files
+        run: |
+          set -e
+          if git ls-files | grep -E '(^|/)\.env($|\.)|(^|/)secrets/(?!README\.md$|.*\.example$)' ; then
+            echo "::error::A .env or real secrets/ file is tracked. It must be gitignored."
+            exit 1
+          fi
+          echo "No tracked env/secret files."
+
+      - name: Pointer files delegate to AGENTS.md
+        run: |
+          set -e
+          for f in CLAUDE.md GEMINI.md .cursorrules .windsurfrules .github/copilot-instructions.md; do
+            if [ -f "$f" ] && ! grep -q 'AGENTS.md' "$f"; then
+              echo "::error::$f does not reference AGENTS.md"; exit 1
+            fi
+          done
+          test -f AGENTS.md || { echo "::error::AGENTS.md missing"; exit 1; }
+          echo "Pointer files OK."
+
+      - name: Every skill has frontmatter
+        run: |
+          set -e
+          fail=0
+          for s in skills/*/SKILL.md; do
+            head -1 "$s" | grep -q '^---$' || { echo "::error::$s missing YAML frontmatter"; fail=1; }
+          done
+          exit $fail
+
+  gitleaks:
+    name: gitleaks secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
